@@ -45,82 +45,74 @@ COPY python/src /app/src
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
 # Nginx config - Frontend + API Proxy
-RUN cat > /etc/nginx/sites-enabled/default << 'EOF'
-server {
-    listen 8080;
-    root /usr/share/nginx/html;
-    
-    # Frontend
-    location / {
-        try_files $uri /index.html;
-    }
-    
-    # API Proxy zu Backend
-    location /api {
-        proxy_pass http://127.0.0.1:8181/api;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    
-    # Socket.IO Proxy
-    location /socket.io {
-        proxy_pass http://127.0.0.1:8181/socket.io;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-    
-    # Health check
-    location /health {
-        return 200 "OK";
-        add_header Content-Type text/plain;
-    }
-}
-EOF
+RUN echo 'server { \
+    listen 8080; \
+    root /usr/share/nginx/html; \
+    \
+    location / { \
+        try_files $uri /index.html; \
+    } \
+    \
+    location /api { \
+        proxy_pass http://127.0.0.1:8181/api; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+    } \
+    \
+    location /socket.io { \
+        proxy_pass http://127.0.0.1:8181/socket.io; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+        proxy_set_header Host $host; \
+    } \
+    \
+    location /health { \
+        return 200 "OK"; \
+        add_header Content-Type text/plain; \
+    } \
+}' > /etc/nginx/sites-enabled/default
 
 # Supervisor config - Alle Services zusammen
-RUN cat > /etc/supervisor/conf.d/supervisord.conf << 'EOF'
-[supervisord]
-nodaemon=true
-user=root
-logfile=/var/log/supervisor/supervisord.log
-pidfile=/var/run/supervisord.pid
-
-[program:nginx]
-command=nginx -g "daemon off;"
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-[program:backend]
-command=python -m uvicorn src.server.main:socket_app --host 127.0.0.1 --port 8181
-directory=/app
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"
-
-[program:mcp]
-command=python -m uvicorn src.mcp.enhanced_server:app --host 127.0.0.1 --port 8051
-directory=/app
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"
-EOF
+RUN echo '[supervisord] \n\
+nodaemon=true \n\
+user=root \n\
+logfile=/var/log/supervisor/supervisord.log \n\
+pidfile=/var/run/supervisord.pid \n\
+\n\
+[program:nginx] \n\
+command=nginx -g "daemon off;" \n\
+autostart=true \n\
+autorestart=true \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0 \n\
+\n\
+[program:backend] \n\
+command=python -m uvicorn src.server.main:socket_app --host 127.0.0.1 --port 8181 \n\
+directory=/app \n\
+autostart=true \n\
+autorestart=true \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0 \n\
+environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1" \n\
+\n\
+[program:mcp] \n\
+command=python -m uvicorn src.mcp.enhanced_server:app --host 127.0.0.1 --port 8051 \n\
+directory=/app \n\
+autostart=true \n\
+autorestart=true \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0 \n\
+environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"' > /etc/supervisor/conf.d/supervisord.conf
 
 # Environment
 ENV PYTHONPATH=/app
