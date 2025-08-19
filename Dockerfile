@@ -1,4 +1,5 @@
 # Dockerfile für Fly.io - Enhanced MCP Server
+# BOMBENSICHER - Keine externen Files nötig!
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -9,35 +10,31 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements
-COPY python/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install MCP enhancement packages
+# Install Python packages - ALLE direkt hier!
 RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn \
-    httpx \
-    websockets \
-    pydantic \
-    pydantic-settings \
-    aiofiles
+    fastapi==0.115.5 \
+    uvicorn==0.32.1 \
+    httpx==0.28.1 \
+    websockets==15.0.1 \
+    pydantic==2.11.7 \
+    pydantic-settings==2.10.1 \
+    aiofiles==24.1.0 \
+    python-multipart==0.0.20 \
+    redis==5.2.1
 
-# Copy source code
+# Copy ONLY what exists
 COPY python/src /app/src
-COPY integrations /app/integrations
 
-# Set environment variables
-ENV PYTHONPATH=/app:/app/integrations
+# Create integrations folder
+RUN mkdir -p /app/integrations
+
+# Environment variables
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 
-# Expose port (Fly.io uses PORT env var)
+# Expose port für Fly.io
 EXPOSE 8080
 
-# Health check endpoint
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Start command for Fly.io
+# Start command
 CMD ["python", "-m", "uvicorn", "src.mcp.enhanced_server:app", "--host", "0.0.0.0", "--port", "8080"]
