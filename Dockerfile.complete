@@ -1,0 +1,87 @@
+# Complete Archon System for Production
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /app/frontend
+COPY archon-ui-main/package*.json ./
+RUN npm ci
+COPY archon-ui-main/ ./
+RUN npm run build
+
+# Python backend
+FROM python:3.12-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    fastapi==0.115.5 \
+    uvicorn==0.32.1 \
+    httpx==0.28.1 \
+    websockets==15.0.1 \
+    pydantic==2.11.7 \
+    pydantic-settings==2.10.1 \
+    aiofiles==24.1.0 \
+    python-multipart==0.0.20 \
+    redis==5.2.1 \
+    python-socketio==5.14.0 \
+    supabase==2.10.0 \
+    langchain==0.3.16 \
+    langchain-openai==0.2.14
+
+WORKDIR /app
+
+# Copy Python source
+COPY python/src /app/src
+
+# Copy frontend build from builder stage
+COPY --from=frontend-builder /app/frontend/dist /app/static
+
+# Nginx configuration
+RUN echo 'server { \
+    listen 8080; \
+    location / { \
+        root /app/static; \
+        try_files $uri /index.html; \
+    } \
+    location /api { \
+        proxy_pass http://localhost:8181; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+    } \
+    location /socket.io { \
+        proxy_pass http://localhost:8181; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+    } \
+}' > /etc/nginx/sites-available/default
+
+# Supervisor configuration
+RUN echo '[supervisord] \n\
+nodaemon=true \n\
+\n\
+[program:nginx] \n\
+command=nginx -g "daemon off;" \n\
+\n\
+[program:backend] \n\
+command=python -m uvicorn src.server.main:socket_app --host 0.0.0.0 --port 8181 \n\
+\n\
+[program:mcp] \n\
+command=python -m uvicorn src.mcp.enhanced_server:app --host 0.0.0.0 --port 8051 \n\
+\n\
+[program:agents] \n\
+command=python -m uvicorn src.agents.service:app --host 0.0.0.0 --port 8052' \
+> /etc/supervisor/conf.d/supervisord.conf
+
+ENV PYTHONPATH=/app
+ENV PORT=8080
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord"]
