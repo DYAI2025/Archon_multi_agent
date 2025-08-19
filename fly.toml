@@ -1,11 +1,8 @@
 # Fly.io Configuration für Archon Enhanced MCP
-app = "archon-mcp"
-primary_region = "fra"  # Frankfurt - nah bei dir
+app = "archon-multi-agent"
+primary_region = "fra"
 kill_signal = "SIGINT"
 kill_timeout = 5
-
-[build]
-  dockerfile = "python/Dockerfile.mcp-enhanced"
 
 [env]
   PYTHONPATH = "/app:/app/integrations"
@@ -32,12 +29,6 @@ kill_timeout = 5
     handlers = ["tls", "http"]
     port = 443
 
-  [[services.tcp_checks]]
-    grace_period = "1s"
-    interval = "15s"
-    restart_limit = 0
-    timeout = "2s"
-
   [[services.http_checks]]
     interval = 10000
     grace_period = "5s"
@@ -45,4 +36,3 @@ kill_timeout = 5
     path = "/health"
     protocol = "http"
     timeout = 2000
-    tls_skip_verify = false
