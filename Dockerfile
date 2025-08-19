@@ -34,7 +34,8 @@ RUN pip install --no-cache-dir \
     python-socketio==5.13.0 \
     supabase==2.10.0 \
     openai==1.58.1 \
-    langchain==0.3.16
+    langchain==0.3.16 \
+    cryptography==44.0.0
 
 WORKDIR /app
 
