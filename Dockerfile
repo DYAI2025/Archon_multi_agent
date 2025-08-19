@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --no-cache-dir \
     fastapi==0.115.5 \
     uvicorn==0.32.1 \
-    httpx==0.28.1 \
+    httpx==0.27.2 \
     websockets==15.0.1 \
     pydantic==2.11.7 \
     pydantic-settings==2.10.1 \
