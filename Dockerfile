@@ -4,8 +4,8 @@
 # Stage 1: Frontend bauen
 FROM node:20-slim AS frontend-builder
 WORKDIR /app
-COPY archon-ui-main/package*.json ./
-RUN npm ci --only=production
+COPY archon-ui-main/package.json archon-ui-main/package-lock.json ./
+RUN npm ci
 COPY archon-ui-main/ ./
 # Build mit API URL zu unserem Backend
 ENV VITE_API_URL=/api
