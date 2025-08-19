@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir \
     pydantic-settings==2.10.1 \
     aiofiles==24.1.0 \
     python-multipart==0.0.20 \
-    python-socketio==5.14.0 \
+    python-socketio==5.13.0 \
     supabase==2.10.0 \
     openai==1.58.1 \
     langchain==0.3.16
