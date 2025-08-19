@@ -1,0 +1,274 @@
+# ========================================================================
+# 🚀 Archon Multi-Agent Orchestration System - Render Deployment
+# ========================================================================
+# Production deployment configuration for Render.com
+# Includes integration of enhanced MCP capabilities
+# ========================================================================
+
+services:
+  # ========================================================================
+  # CORE SERVICES
+  # ========================================================================
+
+  # Main Orchestrator Service - The brain of the multi-agent system
+  - type: web
+    name: archon-orchestrator
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile.orchestrator
+    plan: standard  # $25/month - needs resources for multi-agent coordination
+    healthCheckPath: /health
+    envVars:
+      # Multi-LLM API Keys
+      - key: OPENAI_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Model Configuration
+      - key: CODE_AGENT_MODEL
+        value: openai:gpt-4o
+      - key: DOCUMENT_AGENT_MODEL
+        value: openai:gpt-4o-mini
+      - key: RAG_AGENT_MODEL
+        value: openai:gpt-4o-mini
+      # Service URLs
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archon-redis
+          property: connectionString
+      - key: MCP_SERVICE_URL
+        fromService:
+          type: pserv
+          name: archon-mcp
+          property: hostport
+      - key: AGENTS_SERVICE_URL
+        fromService:
+          type: pserv
+          name: archon-agents
+          property: hostport
+      # Logging
+      - key: LOG_LEVEL
+        value: INFO
+
+  # Main API Server - FastAPI + Socket.IO
+  - type: web
+    name: archon-server
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile.server
+    plan: standard  # $25/month
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ORCHESTRATOR_URL
+        fromService:
+          type: web
+          name: archon-orchestrator
+          property: host
+      - key: SERVICE_DISCOVERY_MODE
+        value: render
+      - key: LOG_LEVEL
+        value: INFO
+
+  # Enhanced MCP Server with fastapi_mcp integration
+  - type: pserv
+    name: archon-mcp
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile.mcp-enhanced
+    plan: standard
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: TRANSPORT
+        value: sse
+      - key: API_SERVICE_URL
+        fromService:
+          type: web
+          name: archon-server
+          property: host
+      - key: GITHUB_TOKEN
+        sync: false  # For git-mcp integration
+
+  # AI Agents Service
+  - type: pserv
+    name: archon-agents
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile.agents
+    plan: standard
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SERVICE_DISCOVERY_MODE
+        value: render
+
+  # ========================================================================
+  # ENHANCED MCP SERVICES (from analyzed repos)
+  # ========================================================================
+
+  # Git-MCP Service for GitHub documentation
+  - type: pserv
+    name: archon-git-mcp
+    runtime: docker
+    dockerfilePath: ./integrations/git-mcp/Dockerfile
+    plan: starter  # $7/month
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: CACHE_ENABLED
+        value: true
+      - key: MAX_CACHE_SIZE
+        value: 500MB
+
+  # Context7 Service for real-time documentation
+  - type: pserv
+    name: archon-context7
+    runtime: docker
+    dockerfilePath: ./integrations/context7/Dockerfile
+    plan: starter
+    envVars:
+      - key: CACHE_TTL
+        value: 3600
+      - key: MAX_CONCURRENT_REQUESTS
+        value: 10
+
+  # GitHub MCP Server for repository management
+  - type: pserv
+    name: archon-github-mcp
+    runtime: docker
+    dockerfilePath: ./integrations/github-mcp/Dockerfile
+    plan: starter
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false
+
+  # ========================================================================
+  # DATA STORES
+  # ========================================================================
+
+  # Redis for task queue and caching
+  - type: redis
+    name: archon-redis
+    plan: starter  # $7/month - 500MB RAM
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Only accessible from Render services
+
+  # PostgreSQL for persistent storage (if not using Supabase)
+  # - type: postgres
+  #   name: archon-db
+  #   plan: starter  # $7/month
+  #   databaseName: archon
+  #   user: archon_admin
+  #   ipAllowList: []
+
+  # ========================================================================
+  # FRONTEND
+  # ========================================================================
+
+  # React Frontend
+  - type: web
+    name: archon-frontend
+    runtime: static
+    buildCommand: cd archon-ui-main && npm ci && npm run build
+    staticPublishPath: ./archon-ui-main/dist
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: archon-server
+          property: host
+      - key: VITE_ORCHESTRATOR_URL
+        fromService:
+          type: web
+          name: archon-orchestrator
+          property: host
+      - key: VITE_WS_URL
+        fromService:
+          type: web
+          name: archon-server
+          property: host
+
+  # ========================================================================
+  # BACKGROUND WORKERS
+  # ========================================================================
+
+  # Task Worker for background processing
+  - type: worker
+    name: archon-task-worker
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile.worker
+    plan: starter
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archon-redis
+          property: connectionString
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: WORKER_CONCURRENCY
+        value: 4
+
+  # ========================================================================
+  # MONITORING & ANALYTICS (Optional)
+  # ========================================================================
+
+  # Prometheus metrics exporter
+  - type: pserv
+    name: archon-metrics
+    runtime: docker
+    dockerfilePath: ./monitoring/Dockerfile.prometheus
+    plan: free
+    envVars:
+      - key: SCRAPE_INTERVAL
+        value: 30s
+      - key: TARGETS
+        value: archon-orchestrator,archon-server,archon-agents
+
+# ========================================================================
+# DEPLOYMENT CONFIGURATION
+# ========================================================================
+
+databases: []  # Using Supabase or external PostgreSQL
+
+envVarGroups:
+  # Shared environment variables
+  - name: archon-shared
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://archon-frontend.onrender.com
+      - key: MAX_REQUEST_SIZE
+        value: 100MB
+      - key: REQUEST_TIMEOUT
+        value: 300
+
+# ========================================================================
+# PREVIEW ENVIRONMENTS
+# ========================================================================
+
+previewsEnabled: true
+previewsExpireAfterDays: 7

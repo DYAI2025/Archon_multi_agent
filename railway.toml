@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "cd python && python -m uvicorn src.mcp.enhanced_server:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+[environments.production]
+PYTHONPATH = "/app/python:/app/integrations"
