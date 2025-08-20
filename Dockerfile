@@ -14,14 +14,18 @@ RUN npm run build
 # Stage 2: Production Image
 FROM python:3.12-slim
 
-# System dependencies
+# System dependencies - mit DNS-Tools für Supabase
 RUN apt-get update && apt-get install -y \
     nginx \
     supervisor \
     curl \
     ca-certificates \
+    dnsutils \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
+    && update-ca-certificates \
+    && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
+    && echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 
 # Python packages
 RUN pip install --no-cache-dir \
@@ -55,7 +59,11 @@ RUN pip install --no-cache-dir \
     pytest==8.0.0 \
     pytest-asyncio==0.21.0 \
     pytest-mock==3.12.0 \
-    watchfiles==0.18
+    watchfiles==0.18 \
+    playwright==1.48.0
+
+# Install Playwright browsers
+RUN playwright install chromium --with-deps
 
 WORKDIR /app
 
