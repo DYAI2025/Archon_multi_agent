@@ -18,16 +18,11 @@ from datetime import datetime
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from ..utils import get_supabase_client
-from ..services.storage import DocumentStorageService
-from ..services.search.rag_service import RAGService
-from ..services.knowledge import KnowledgeItemService, DatabaseMetricsService
-from ..services.crawling import CrawlOrchestrationService
-from ..services.crawler_manager import get_crawler
-
 # Import unified logging
 from ..config.logfire_config import get_logger, safe_logfire_error, safe_logfire_info
 from ..services.crawler_manager import get_crawler
+from ..services.crawling import CrawlOrchestrationService
+from ..services.knowledge import DatabaseMetricsService, KnowledgeItemService
 from ..services.search.rag_service import RAGService
 from ..services.storage import DocumentStorageService
 from ..utils import get_supabase_client
@@ -621,7 +616,7 @@ async def _perform_upload_with_progress(
                 f"Document text extracted | filename={filename} | extracted_length={len(extracted_text)} | content_type={content_type}"
             )
         except Exception as e:
-            await error_crawl_progress(progress_id, f"Failed to extract text: {str(e)}")
+            await error_crawl_progress(progress_id, f"Failed to extract text: {str(e)}", "document")
             return
 
         # Use DocumentStorageService to handle the upload
@@ -689,14 +684,14 @@ async def _perform_upload_with_progress(
             )
         else:
             error_msg = result.get("error", "Unknown error")
-            await error_crawl_progress(progress_id, error_msg)
+            await error_crawl_progress(progress_id, error_msg, "document")
 
     except Exception as e:
         error_msg = f"Upload failed: {str(e)}"
         safe_logfire_error(
             f"Document upload failed | progress_id={progress_id} | filename={file_metadata.get('filename', 'unknown')} | error={str(e)}"
         )
-        await error_crawl_progress(progress_id, error_msg)
+        await error_crawl_progress(progress_id, error_msg, "document")
     finally:
         # Clean up task from registry when done (success or failure)
         if progress_id in active_crawl_tasks:
@@ -902,7 +897,7 @@ async def stop_crawl_task(progress_id: str):
     """Stop a running crawl task."""
     try:
         from ..services.crawling import get_active_orchestration, unregister_orchestration
-        
+
         # Emit stopping status immediately
         await sio.emit(
             "crawl:stopping",
