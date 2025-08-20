@@ -27,18 +27,40 @@ sys.path.insert(0, str(integrations_path))
 # Import integration modules
 try:
     # Import fastapi_mcp for exposing endpoints as tools
-    from fastapi_mcp import MCPServer
+    from fastapi_mcp.fastapi_mcp.server import FastApiMCP
+    MCPServer = FastApiMCP
 except ImportError:
-    MCPServer = None
-    print("Warning: fastapi_mcp not available")
+    try:
+        from fastapi_mcp import FastApiMCP
+        MCPServer = FastApiMCP
+    except ImportError:
+        MCPServer = None
+        print("Warning: fastapi_mcp not available")
 
 try:
     # Import mcp-use for multi-agent capabilities
-    from mcp_use import Agent, MCPClient
+    from mcp_use.mcp_use import MCPAgent, MCPClient
+    Agent = MCPAgent
 except ImportError:
-    Agent = None
-    MCPClient = None
-    print("Warning: mcp-use not available")
+    try:
+        from mcp_use import MCPAgent, MCPClient
+        Agent = MCPAgent
+    except ImportError:
+        Agent = None
+        MCPClient = None
+        print("Warning: mcp-use not available")
+
+try:
+    # Import GitIngest MCP for GitHub documentation access
+    import sys
+    gitingest_path = integrations_path / "Gitingest-MCP" / "src"
+    if str(gitingest_path) not in sys.path:
+        sys.path.insert(0, str(gitingest_path))
+    from gitingest_mcp.server import app as gitingest_app
+    GitIngestMCP = gitingest_app
+except ImportError as e:
+    GitIngestMCP = None
+    print(f"Warning: Gitingest-MCP not available: {e}")
 
 logger = logging.getLogger(__name__)
 

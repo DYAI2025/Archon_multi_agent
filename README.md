@@ -84,6 +84,37 @@ This new vision for Archon replaces the old one (the agenteer). Archon used to b
    - Go to **Settings** → Select your LLM/embedding provider and set the API key (OpenAI is default)
    - Test by uploading a document or crawling a website
 
+6. **Verify Installation**:
+   ```bash
+   # Test integration status
+   python test_integration.py
+   
+   # Test Supabase connection
+   python python/test_supabase_connection.py
+   ```
+
+## 🔌 MCP Integrations
+
+Archon includes enhanced MCP (Model Context Protocol) capabilities with integrated modules:
+
+### Available Integrations
+- **fastapi_mcp**: Automatically exposes FastAPI endpoints as MCP tools for LLM integration
+- **mcp-use**: Multi-LLM agent management with LangChain adapters  
+- **Gitingest-MCP**: GitHub repository analysis and documentation access
+
+### Integration Status
+- ✅ **Core MCP Server**: Fully functional with 10+ built-in tools
+- ✅ **Enhanced MCP Server**: Integrated with external MCP modules
+- ✅ **Frontend Integration**: UI components for MCP management
+- ⚠️ **Module Dependencies**: Some integrations require additional setup
+
+### Connect AI Coding Assistants
+1. Point your AI assistant's MCP client to: `http://localhost:8051/mcp`
+2. Use the available tools for knowledge search, project management, and code analysis
+3. Real-time updates via Socket.IO keep everything synchronized
+
+For detailed Supabase configuration, see [SUPABASE_SETUP.md](SUPABASE_SETUP.md)
+
 ## 🔄 Database Reset (Start Fresh if Needed)
 
 If you need to completely reset your database and start fresh:
