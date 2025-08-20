@@ -96,11 +96,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Could not initialize Logfire: {str(e)}")
 
-        # Initialize crawling context
+        # Initialize crawler with more resilience
         try:
-            await initialize_crawler()
+            await asyncio.wait_for(initialize_crawler(), timeout=20.0)
+            api_logger.info("✅ Crawler initialized")
+        except asyncio.TimeoutError:
+            api_logger.warning("⚠️ Crawler initialization timed out - continuing without full crawler features")
         except Exception as e:
-            api_logger.warning(f"Could not fully initialize crawling context: {str(e)}")
+            api_logger.warning(f"⚠️ Could not fully initialize crawling context: {str(e)}")
+            api_logger.info("🔄 Continuing with limited crawling functionality")
 
         # Make crawling context available to modules
         # Crawler is now managed by CrawlerManager
@@ -112,14 +116,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             api_logger.warning(f"Could not initialize Socket.IO services: {e}")
 
-        # Initialize prompt service
+        # Initialize prompt service with timeout
         try:
             from .services.prompt_service import prompt_service
 
-            await prompt_service.load_prompts()
+            await asyncio.wait_for(prompt_service.load_prompts(), timeout=10.0)
             api_logger.info("✅ Prompt service initialized")
+        except asyncio.TimeoutError:
+            api_logger.warning("⚠️ Prompt service initialization timed out - using defaults")
         except Exception as e:
-            api_logger.warning(f"Could not initialize prompt service: {e}")
+            api_logger.warning(f"⚠️ Could not initialize prompt service: {e}")
+            api_logger.info("🔄 Continuing with default prompts")
 
         # Set the main event loop for background tasks
         try:
