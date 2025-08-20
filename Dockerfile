@@ -45,7 +45,6 @@ RUN pip install --no-cache-dir \
     langchain==0.3.16 \
     cryptography==44.0.0 \
     psutil==6.1.1 \
-    crawl4ai==0.6.2 \
     asyncpg==0.29.0 \
     pypdf2==3.0.1 \
     pdfplumber==0.11.6 \
