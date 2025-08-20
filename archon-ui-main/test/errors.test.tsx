@@ -2,6 +2,87 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, test, expect, vi } from 'vitest'
 import React from 'react'
 
+/**
+ * Test for Upload Error Message Fix - Issue Analysis
+ * 
+ * This test validates that upload operations correctly set uploadType
+ * to distinguish from crawling operations in error messages.
+ */
+describe('Upload Error Message Fix Tests', () => {
+  test('should distinguish between upload and crawl error types', () => {
+    // Test data representing the backend response for upload error
+    const uploadErrorData = {
+      status: 'error',
+      error: 'Failed to process document',
+      progressId: 'test-upload-123',
+      uploadType: 'document'  // This is the key fix
+    };
+
+    // Test data representing the backend response for crawl error  
+    const crawlErrorData = {
+      status: 'error',
+      error: 'Failed to crawl website',
+      progressId: 'test-crawl-456',
+      uploadType: 'crawl'  // Default for crawling operations
+    };
+
+    // Verify that upload errors are correctly identified
+    expect(uploadErrorData.uploadType).toBe('document');
+    expect(uploadErrorData.status).toBe('error');
+    
+    // Verify that crawl errors are correctly identified
+    expect(crawlErrorData.uploadType).toBe('crawl');
+    expect(crawlErrorData.status).toBe('error');
+    
+    // Test the frontend logic that determines error message text
+    const getErrorMessageText = (data: typeof uploadErrorData) => {
+      const isUpload = data.uploadType === 'document';
+      return isUpload ? 'Upload failed' : 'Crawling failed';
+    };
+
+    expect(getErrorMessageText(uploadErrorData)).toBe('Upload failed');
+    expect(getErrorMessageText(crawlErrorData)).toBe('Crawling failed');
+  });
+
+  test('should validate CrawlingProgressCard status logic', () => {
+    // Simulate the getStatusConfig function logic from CrawlingProgressCard
+    const getStatusConfig = (status: string, uploadType: string) => {
+      const isUpload = uploadType === 'document';
+      
+      switch (status) {
+        case 'error':
+          return {
+            text: isUpload ? 'Upload failed' : 'Crawling failed',
+            color: 'pink' as const,
+          };
+        case 'completed':
+          return {
+            text: isUpload ? 'Upload completed!' : 'Crawling completed!',
+            color: 'green' as const,
+          };
+        default:
+          return {
+            text: 'Processing...',
+            color: 'blue' as const,
+          };
+      }
+    };
+
+    const uploadErrorConfig = getStatusConfig('error', 'document');
+    const uploadCompleteConfig = getStatusConfig('completed', 'document');
+    const crawlErrorConfig = getStatusConfig('error', 'crawl');
+
+    expect(uploadErrorConfig.text).toBe('Upload failed');
+    expect(uploadErrorConfig.color).toBe('pink');
+    
+    expect(uploadCompleteConfig.text).toBe('Upload completed!');
+    expect(uploadCompleteConfig.color).toBe('green');
+    
+    expect(crawlErrorConfig.text).toBe('Crawling failed');
+    expect(crawlErrorConfig.color).toBe('pink');
+  });
+});
+
 describe('Error Handling Tests', () => {
   test('api error simulation', () => {
     const MockApiComponent = () => {

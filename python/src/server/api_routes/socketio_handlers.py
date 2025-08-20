@@ -210,9 +210,14 @@ async def complete_crawl_progress(progress_id: str, data: dict):
     await broadcast_crawl_progress(progress_id, data)
 
 
-async def error_crawl_progress(progress_id: str, error_msg: str):
+async def error_crawl_progress(progress_id: str, error_msg: str, upload_type: str = "crawl"):
     """Signal crawl progress error."""
-    data = {"status": "error", "error": error_msg, "progressId": progress_id}
+    data = {
+        "status": "error",
+        "error": error_msg,
+        "progressId": progress_id,
+        "uploadType": upload_type
+    }
     await broadcast_crawl_progress(progress_id, data)
 
 
