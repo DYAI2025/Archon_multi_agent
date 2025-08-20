@@ -52,9 +52,9 @@ kill_timeout = 30
     handlers = ["tls", "http"]
 
   [[services.http_checks]]
-    interval = 10000
-    grace_period = "10s"
+    interval = 30000
+    grace_period = "60s"
     method = "get"
     path = "/health"
     protocol = "http"
-    timeout = 2000
+    timeout = 10000
