@@ -79,15 +79,20 @@ async def lifespan(app: FastAPI):
 
     try:
         # Initialize credentials from database FIRST - this is the foundation for everything else
-        await initialize_credentials()
+        try:
+            await initialize_credentials()
+            logger.info("✅ Credentials initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not initialize credentials from database: {str(e)}")
+            logger.info("📝 Using environment variables only")
 
         # Now that credentials are loaded, we can properly initialize logging
         # This must happen AFTER credentials so LOGFIRE_ENABLED is set from database
-        setup_logfire(service_name="archon-backend")
-
-        # Now we can safely use the logger
-        logger.info("✅ Credentials initialized")
-        api_logger.info("🔥 Logfire initialized for backend")
+        try:
+            setup_logfire(service_name="archon-backend")
+            api_logger.info("🔥 Logfire initialized for backend")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not initialize Logfire: {str(e)}")
 
         # Initialize crawling context
         try:
