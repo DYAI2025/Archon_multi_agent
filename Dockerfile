@@ -59,11 +59,7 @@ RUN pip install --no-cache-dir \
     pytest==8.0.0 \
     pytest-asyncio==0.21.0 \
     pytest-mock==3.12.0 \
-    watchfiles==0.18 \
-    playwright==1.48.0
-
-# Install Playwright browsers
-RUN playwright install chromium --with-deps
+    watchfiles==0.18
 
 WORKDIR /app
 
