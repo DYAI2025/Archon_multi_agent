@@ -23,9 +23,7 @@ RUN apt-get update && apt-get install -y \
     dnsutils \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates \
-    && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
-    && echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+    && update-ca-certificates
 
 # Python packages
 RUN pip install --no-cache-dir \
