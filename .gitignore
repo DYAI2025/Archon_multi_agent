@@ -26,3 +26,7 @@ node_modules/
 # Secrets
 *.key
 *.pem
+
+# Integration repositories (git submodules)
+integrations/*/
+!integrations/README.md
