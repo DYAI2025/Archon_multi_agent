@@ -1,262 +1,599 @@
-# Archon Multi-Agent System - GitHub Copilot Instructions
-
-**ALWAYS follow these instructions first and only fallback to additional search and context gathering if the information here is incomplete or found to be in error.**
-
-## Working Effectively
-
-Archon is a microservices-based knowledge management system with MCP (Model Context Protocol) integration that enables AI coding assistants to access custom knowledge bases and task management.
-
-### Bootstrap, Build, and Test the Repository
-
-**CRITICAL SETUP - Prerequisites:**
-- Docker Desktop installed and running
-- Node.js 18+ and npm
-- Python 3.12
-- uv package manager (install with: `pip install uv`)
-- Supabase account (free tier works) for database
-
-**Environment Setup:**
-```bash
-# 1. Copy environment template
-cp .env.example .env
-
-# 2. Edit .env and add YOUR Supabase credentials:
-# SUPABASE_URL=https://your-project.supabase.co
-# SUPABASE_SERVICE_KEY=your-service-key-here
-# (Get these from Supabase project settings > API section)
-```
-
-**Database Setup (MANDATORY):**
-```bash
-# Execute in your Supabase SQL Editor (https://supabase.com/dashboard)
-# Copy, paste, and execute the contents of: migration/complete_setup.sql
-```
-
-**Frontend Setup and Testing:**
-```bash
-cd archon-ui-main
-npm install                    # Takes ~27 seconds
-npm test                      # Takes ~3 seconds, may have 1 failing test (expected)
-npm run build                 # Takes ~12 seconds, builds successfully
-npm run lint                  # Takes ~4 seconds, shows 244 warnings/3 errors (known issues)
-```
-
-**Backend Setup and Testing:**
-```bash
-cd python
-uv sync                       # Takes ~39 seconds, installs all dependencies
-uv run pytest tests/test_api_essentials.py -v  # Takes ~16 seconds, all tests pass
-uv run ruff check             # Takes <1 second, shows 809 style issues (known)
-uv run mypy src/              # Takes ~88 seconds, shows 519 type errors (known)
-```
-
-**Docker Build Process:**
-```bash
-# WARNING: Docker builds can fail due to SSL certificate issues in some environments
-# If build fails with SSL errors, this is a KNOWN LIMITATION - document it
-
-# NEVER CANCEL: Docker builds typically take 45-60 minutes, but can take up to 90+ minutes in some environments. Set timeout to 90+ minutes to avoid premature cancellation.
-docker compose build --no-cache    # Full build: 45-60 minutes typical, up to 90+ minutes in some environments
-docker compose up -d               # Start all services: ~2 minutes
-```
-
-**Service Health Verification:**
-```bash
-# Verify all services are running
-docker compose ps
-
-# Test service endpoints
-curl http://localhost:8181/health  # Server health
-curl http://localhost:8051/health  # MCP health  
-curl http://localhost:8052/health  # Agents health
-curl http://localhost:3737         # Frontend (should return HTML)
-```
-
-### Architecture Overview
-
-Archon uses true microservices architecture:
-
-```
-Frontend (3737) ↔ Server (8181) ↔ MCP (8051) ↔ Agents (8052)
-                       ↓
-                 Supabase DB + Redis (6379)
-                       ↓
-              Orchestrator (8053)
-```
-
-**Service Responsibilities:**
-- **Frontend**: React + TypeScript + Vite + TailwindCSS (`archon-ui-main/`)
-- **Server**: FastAPI + Socket.IO + crawling + business logic (`python/src/server/`)
-- **MCP Server**: Lightweight HTTP MCP protocol interface (`python/src/mcp/`)
-- **Agents**: PydanticAI agents for AI/ML operations (`python/src/agents/`)
-- **Orchestrator**: Multi-agent coordination (`python/src/orchestrator/`)
-
-## Validation Requirements
-
-**NEVER CANCEL builds or long-running commands.** Always wait for completion.
-
-**Manual Functional Testing (MANDATORY):**
-After making changes, ALWAYS test actual functionality through the UI:
-
-1. **Access Web Interface**: Open http://localhost:3737
-2. **Test Knowledge Management**:
-   - Go to Knowledge Base → "Crawl Website"
-   - Enter a documentation URL (e.g., https://ai.pydantic.dev/llms-full.txt)
-   - Wait for crawling to complete (~2-5 minutes)
-   - Test search functionality
-3. **Test MCP Integration**:
-   - Go to MCP Dashboard
-   - Verify connection status shows "Connected"
-   - Test tool execution if possible
-4. **Test Settings**:
-   - Go to Settings → Select LLM provider
-   - Set API key if available
-   - Verify settings save correctly
-
-**CI/CD Validation:**
-```bash
-# Frontend validation
-cd archon-ui-main
-npm run test:coverage        # Full test suite with coverage
-npm run lint                # ESLint (expect warnings)
-
-# Backend validation  
-cd python
-uv run pytest              # All tests (expect some warnings)
-uv run ruff check          # Linting (expect style issues)
-uv run mypy src/           # Type checking (expect errors)
-```
-
-## Timing Expectations and Timeouts
-
-**CRITICAL: NEVER CANCEL these operations - use these minimum timeout values:**
-
-- **npm install**: 30 seconds (set timeout: 60+ seconds)
-- **npm test**: 5 seconds (set timeout: 30+ seconds)  
-- **npm run build**: 15 seconds (set timeout: 60+ seconds)
-- **uv sync**: 45 seconds (set timeout: 120+ seconds)
-- **pytest tests**: 20 seconds (set timeout: 60+ seconds)
-- **mypy type check**: 90 seconds (set timeout: 180+ seconds)
-- **Docker builds**: 45-60 minutes (set timeout: 90+ minutes)
-- **Docker service startup**: 3-5 minutes (set timeout: 10+ minutes)
-
-## Known Issues and Limitations
-
-**Docker Build Failures:**
-- SSL certificate errors with PyPI are common in some environments
-- **Document this as**: "Docker build fails due to SSL certificate issues - known limitation in some environments"
-- **Workaround**: Use pre-built images or fix certificates
-
-**Linting/Type Issues:**
-- Frontend: 244 warnings/3 errors in ESLint (legacy code)
-- Backend: 809 style issues in ruff, 519 type errors in mypy
-- **These are known issues** - document but don't require fixing
-
-**Test Failures:**
-- Frontend may have 1 failing test (onboarding detection)
-- This is expected and acceptable
-
-## Key Development Commands
-
-**Start Development Environment:**
-```bash
-# Backend with hot reload
-docker compose up archon-server archon-mcp archon-agents --build
-
-# Frontend with hot reload (separate terminal)
-cd archon-ui-main && npm run dev
-```
-
-**Add New API Endpoint:**
-1. Create route handler in `python/src/server/api_routes/`
-2. Add service logic in `python/src/server/services/`
-3. Include router in `python/src/server/main.py`
-4. Update frontend service in `archon-ui-main/src/services/`
-
-**Debug MCP Issues:**
-```bash
-curl http://localhost:8051/health              # Check MCP health
-docker compose logs archon-mcp                 # View MCP logs
-curl http://localhost:8051/tools               # List available tools
-```
-
-## Important File Locations
-
-**Configuration:**
-- `.env` - Environment variables (create from `.env.example`)
-- `docker-compose.yml` - Service orchestration
-- `migration/complete_setup.sql` - Database schema
-
-**Frontend Structure:**
-- `archon-ui-main/src/components/` - UI components
-- `archon-ui-main/src/pages/` - Main pages
-- `archon-ui-main/src/services/` - API services
-- `archon-ui-main/test/` - Frontend tests
-
-**Backend Structure:**
-- `python/src/server/` - Main FastAPI app
-- `python/src/mcp/` - MCP server implementation  
-- `python/src/agents/` - PydanticAI agents
-- `python/tests/` - Backend tests
-
-**Package Management:**
-- Frontend: `npm` (see `archon-ui-main/package.json`)
-- Backend: `uv` (see `python/pyproject.toml`)
-
-## Development Patterns
-
-**Error Handling Philosophy:**
-- **Fail fast**: Service startup, missing config, database connection failures
-- **Continue with logging**: Batch processing, background tasks, optional features
-- **Never store corrupted data**: Skip failed items entirely
-
-**Code Quality:**
-- Python: 120 character line length, Ruff + MyPy (expect issues)
-- TypeScript: ESLint configured (expect warnings)
-- **Always run linting before commits** even if it shows issues
-
-**Testing Strategy:**
-- Frontend: Vitest for unit/integration tests
-- Backend: pytest with async support
-- Docker: Health checks and service communication tests
-- **Manual validation required** - automated tests don't cover full functionality
-
-## Supabase Integration
-
-**Required Tables:** `sources`, `documents`, `projects`, `tasks`, `code_examples`
-**Vector Search:** Uses pgvector for embeddings
-**Real-time:** Socket.IO for live updates
-
-**Setup Commands:**
-```sql
--- Execute in Supabase SQL Editor
--- File: migration/complete_setup.sql (copy entire contents)
-```
-
-## MCP Tools Available
-
-When connected to AI coding assistants:
-- `archon:perform_rag_query` - Search knowledge base
-- `archon:search_code_examples` - Find code snippets  
-- `archon:manage_project` - Project operations
-- `archon:manage_task` - Task management
-- `archon:get_available_sources` - List knowledge sources
-
-## Common Troubleshooting
-
-**"Dependencies not found"**: Run `uv sync` in python/ or `npm install` in archon-ui-main/
-**"Database connection failed"**: Check SUPABASE_URL and SUPABASE_SERVICE_KEY in .env
-**"Service not responding"**: Verify Docker containers are running with `docker compose ps`
-**"MCP connection issues"**: Check MCP health endpoint and service logs
-**"Build timeouts"**: Increase timeout values - builds legitimately take 45+ minutes
-
-## Security Notes
-
-- **Never commit secrets** to version control
-- **API keys stored encrypted** in database via Settings UI
-- **Service-to-service communication** uses Docker internal networks
-- **Frontend proxies API calls** via Vite in development
-
+---
+description: 'Comprehensive development guidelines for Archon multi-agent knowledge management system'
+applyTo: '**/*'
 ---
 
-**Remember**: Archon is in alpha development - expect rough edges. Focus on functionality over perfect code quality. Always test actual user workflows after making changes.
+# Archon Multi-Agent Development Instructions
+
+## Project Overview
+
+Archon V2 Alpha is a microservices-based knowledge management system with MCP (Model Context Protocol) integration designed for local-only deployment. Each user runs their own instance focusing on rapid iteration and feature development.
+
+### Core Architecture
+
+- **Frontend (port 3737)**: React + TypeScript + Vite + TailwindCSS
+- **Main Server (port 8181)**: FastAPI + Socket.IO for real-time updates  
+- **MCP Server (port 8051)**: Lightweight HTTP-based MCP protocol server
+- **Agents Service (port 8052)**: PydanticAI agents for AI/ML operations
+- **Database**: Supabase (PostgreSQL + pgvector for embeddings)
+
+## Alpha Development Philosophy
+
+### Core Principles
+
+- **No backwards compatibility** - remove deprecated code immediately
+- **Detailed errors over graceful failures** - identify and fix issues fast
+- **Break things to improve them** - alpha is for rapid iteration
+- **Local-only deployment** - each user runs their own instance
+
+### Error Handling Strategy
+
+**Critical Decision Framework**: Intelligently decide when to fail fast vs. complete with detailed logging.
+
+#### Fail Fast and Loud (Let it Crash!)
+
+Stop execution immediately for:
+- Service startup failures (credentials, database, services can't initialize)
+- Missing configuration (environment variables, invalid settings)
+- Database connection failures
+- Authentication/authorization failures
+- Data corruption or validation errors
+- Critical dependencies unavailable
+- Invalid data that would corrupt state
+
+#### Complete but Log Detailed Errors
+
+Continue processing but track failures for:
+- Batch processing (crawling, document processing)
+- Background tasks (embedding generation, async jobs)
+- WebSocket events
+- Optional features (when projects/tasks disabled)
+- External API calls (with exponential backoff)
+
+**Never Accept Corrupted Data**: Skip failed items entirely rather than storing corrupted data.
+
+```python
+# ✅ CORRECT - Skip Failed Items
+try:
+    embedding = create_embedding(text)
+    store_document(doc, embedding)  # Only store on success
+except Exception as e:
+    failed_items.append({'doc': doc, 'error': str(e)})
+    logger.error(f"Skipping document {doc.id}: {e}")
+    # Continue with next document, don't store anything
+
+# ❌ WRONG - Silent Corruption
+try:
+    embedding = create_embedding(text)
+except Exception as e:
+    embedding = [0.0] * 1536  # NEVER DO THIS
+    store_document(doc, embedding)
+```
+
+## Python Development Standards
+
+### Code Quality Requirements
+
+- **Python 3.12** with 120 character line length
+- **Ruff** for linting and formatting
+- **Mypy** for type checking
+- **uv** for dependency management
+
+### FastAPI Patterns
+
+```python
+# Route handler structure
+@router.post("/api/endpoint")
+async def endpoint_handler(
+    request: RequestModel,
+    db: AsyncSession = Depends(get_db)
+) -> ResponseModel:
+    """
+    Clear docstring describing the endpoint purpose.
+    
+    Args:
+        request: Description of request model
+        db: Database session dependency
+        
+    Returns:
+        ResponseModel: Description of response
+        
+    Raises:
+        HTTPException: When validation fails
+    """
+    try:
+        result = await service_function(request.data, db)
+        return ResponseModel(data=result)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Endpoint failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+### Service Layer Patterns
+
+```python
+# Service function structure
+async def service_function(
+    data: InputType,
+    db: AsyncSession,
+    user_context: Optional[UserContext] = None
+) -> OutputType:
+    """
+    Business logic with clear separation of concerns.
+    
+    Args:
+        data: Input data with proper typing
+        db: Database session for operations
+        user_context: Optional user context for auth
+        
+    Returns:
+        OutputType: Processed result
+        
+    Raises:
+        ServiceError: When business logic fails
+        ValidationError: When data validation fails
+    """
+    # Validate inputs
+    if not data.is_valid():
+        raise ValidationError("Invalid input data")
+    
+    # Business logic
+    result = await process_data(data, db)
+    
+    # Return typed result
+    return OutputType(result=result)
+```
+
+### Database Patterns
+
+```python
+# Use async/await for all database operations
+async def get_documents_by_source(
+    source_id: int,
+    db: AsyncSession,
+    limit: int = 10,
+    offset: int = 0
+) -> list[Document]:
+    """Get documents by source with pagination."""
+    query = select(Document).where(Document.source_id == source_id)
+    query = query.limit(limit).offset(offset)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+# Use proper error handling
+async def create_document(
+    document_data: DocumentCreate,
+    db: AsyncSession
+) -> Document:
+    """Create new document with error handling."""
+    try:
+        document = Document(**document_data.model_dump())
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+        return document
+    except IntegrityError as e:
+        await db.rollback()
+        raise ServiceError(f"Document creation failed: {e}")
+```
+
+### Testing Patterns
+
+```python
+# Use pytest with async support
+@pytest.mark.asyncio
+async def test_service_function():
+    """Test service function with proper mocking."""
+    # Arrange
+    mock_data = create_test_data()
+    mock_db = AsyncMock()
+    
+    # Act
+    result = await service_function(mock_data, mock_db)
+    
+    # Assert
+    assert result.is_valid()
+    assert result.data == expected_data
+    mock_db.execute.assert_called_once()
+```
+
+## TypeScript/React Development Standards
+
+### Component Structure
+
+```typescript
+// Use functional components with proper typing
+interface ComponentProps {
+  data: DataType;
+  onAction: (id: string) => void;
+  className?: string;
+}
+
+export const Component: React.FC<ComponentProps> = ({ 
+  data, 
+  onAction, 
+  className = "" 
+}) => {
+  // Use custom hooks for state management
+  const { state, actions } = useComponentState(data);
+  
+  // Handle events with proper typing
+  const handleClick = useCallback((id: string) => {
+    onAction(id);
+    actions.updateState(id);
+  }, [onAction, actions]);
+  
+  return (
+    <div className={`component-base ${className}`}>
+      {/* Component JSX */}
+    </div>
+  );
+};
+```
+
+### Service Layer (Frontend)
+
+```typescript
+// API service with proper error handling
+class ApiService {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    try {
+      const response = await fetch(`/api${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
+      
+      if (!response.ok) {
+        throw new ApiError(`API request failed: ${response.statusText}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      logger.error(`API request failed: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getData(id: string): Promise<DataType> {
+    return this.request<DataType>(`/data/${id}`);
+  }
+}
+```
+
+### Custom Hooks
+
+```typescript
+// Custom hook with proper state management
+export const useDataFetching = (id: string) => {
+  const [data, setData] = useState<DataType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await apiService.getData(id);
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+  
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  return { data, loading, error, refetch: fetchData };
+};
+```
+
+## MCP (Model Context Protocol) Development
+
+### MCP Tool Implementation
+
+```python
+# MCP tool with proper structure
+@mcp_server.tool("archon:perform_rag_query")
+async def perform_rag_query(
+    query: str,
+    limit: int = 5,
+    source_filter: Optional[str] = None
+) -> MCPResult:
+    """
+    Perform RAG query against knowledge base.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results
+        source_filter: Optional source ID filter
+        
+    Returns:
+        MCPResult: Formatted search results
+    """
+    try:
+        # Validate inputs
+        if not query.strip():
+            raise ValueError("Query cannot be empty")
+            
+        # Perform search
+        results = await search_service.semantic_search(
+            query=query,
+            limit=limit,
+            source_filter=source_filter
+        )
+        
+        # Format results for MCP
+        return MCPResult(
+            success=True,
+            data=results,
+            message=f"Found {len(results)} results"
+        )
+        
+    except Exception as e:
+        logger.error(f"RAG query failed: {e}")
+        return MCPResult(
+            success=False,
+            error=str(e),
+            message="RAG query failed"
+        )
+```
+
+## Socket.IO Real-time Updates
+
+### Backend WebSocket Patterns
+
+```python
+# Socket.IO event handling
+@sio.event
+async def connect(sid: str, environ: dict):
+    """Handle client connection."""
+    logger.info(f"Client connected: {sid}")
+    await sio.emit('connection_status', {'status': 'connected'}, room=sid)
+
+@sio.event
+async def disconnect(sid: str):
+    """Handle client disconnection."""
+    logger.info(f"Client disconnected: {sid}")
+
+# Emit progress updates
+async def emit_progress(
+    event_type: str,
+    progress: dict,
+    room: Optional[str] = None
+):
+    """Emit progress updates to clients."""
+    await sio.emit(event_type, {
+        'timestamp': datetime.utcnow().isoformat(),
+        'progress': progress
+    }, room=room)
+```
+
+### Frontend WebSocket Integration
+
+```typescript
+// Socket.IO client with proper typing
+interface SocketEvents {
+  crawl_progress: (data: CrawlProgress) => void;
+  project_creation_progress: (data: ProjectProgress) => void;
+  task_update: (data: TaskUpdate) => void;
+}
+
+export const useSocketIO = () => {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  
+  useEffect(() => {
+    const newSocket = io('http://localhost:8181');
+    
+    newSocket.on('connect', () => {
+      console.log('Connected to server');
+    });
+    
+    setSocket(newSocket);
+    
+    return () => {
+      newSocket.close();
+    };
+  }, []);
+  
+  const emitEvent = useCallback((event: string, data: any) => {
+    socket?.emit(event, data);
+  }, [socket]);
+  
+  return { socket, emitEvent };
+};
+```
+
+## Testing Strategies
+
+### Backend Testing
+
+```python
+# API endpoint testing
+@pytest.mark.asyncio
+async def test_api_endpoint(client: TestClient, mock_db: AsyncSession):
+    """Test API endpoint with proper setup."""
+    # Arrange
+    test_data = {"key": "value"}
+    expected_response = {"result": "success"}
+    
+    # Act
+    response = await client.post("/api/endpoint", json=test_data)
+    
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == expected_response
+
+# Service testing with mocks
+@pytest.mark.asyncio
+async def test_service_function(mock_db: AsyncSession):
+    """Test service function with database mocking."""
+    # Mock database responses
+    mock_db.execute.return_value.scalars.return_value.all.return_value = [
+        mock_document()
+    ]
+    
+    # Test service function
+    result = await service_function(test_input, mock_db)
+    
+    assert result is not None
+    assert len(result) == 1
+```
+
+### Frontend Testing
+
+```typescript
+// Component testing with React Testing Library
+describe('Component', () => {
+  it('renders correctly with data', () => {
+    const mockData = { id: '1', title: 'Test' };
+    const mockOnAction = jest.fn();
+    
+    render(
+      <Component data={mockData} onAction={mockOnAction} />
+    );
+    
+    expect(screen.getByText('Test')).toBeInTheDocument();
+  });
+  
+  it('handles user interactions', async () => {
+    const mockOnAction = jest.fn();
+    
+    render(
+      <Component data={mockData} onAction={mockOnAction} />
+    );
+    
+    await user.click(screen.getByRole('button'));
+    
+    expect(mockOnAction).toHaveBeenCalledWith('1');
+  });
+});
+```
+
+## File Organization Patterns
+
+### Backend Structure
+
+```
+python/src/
+├── server/
+│   ├── main.py              # FastAPI app entry point
+│   ├── api_routes/          # Route handlers
+│   │   ├── knowledge_api.py
+│   │   ├── projects_api.py
+│   │   └── tasks_api.py
+│   ├── services/            # Business logic
+│   │   ├── knowledge/
+│   │   ├── projects/
+│   │   └── tasks/
+│   ├── models/              # Database models
+│   └── dependencies/        # FastAPI dependencies
+├── mcp/                     # MCP server implementation
+├── agents/                  # PydanticAI agents
+└── tests/                   # Test files
+```
+
+### Frontend Structure
+
+```
+archon-ui-main/src/
+├── components/              # Reusable UI components
+│   ├── ui/                 # Base UI components
+│   ├── knowledge/          # Knowledge-specific components
+│   └── projects/           # Project-specific components
+├── pages/                   # Main application pages
+├── services/                # API communication
+├── hooks/                   # Custom React hooks
+├── contexts/                # React context providers
+└── types/                   # TypeScript type definitions
+```
+
+## Development Workflow
+
+### Adding New Features
+
+1. **API Development**:
+   - Create route handler in `python/src/server/api_routes/`
+   - Add service logic in `python/src/server/services/`
+   - Include router in `python/src/server/main.py`
+   - Write tests in `python/tests/`
+
+2. **Frontend Development**:
+   - Create component in `archon-ui-main/src/components/`
+   - Add to page in `archon-ui-main/src/pages/`
+   - Update service in `archon-ui-main/src/services/`
+   - Add tests in `archon-ui-main/test/`
+
+3. **MCP Integration**:
+   - Implement tool in `python/src/mcp/`
+   - Add to tool registry
+   - Test via UI MCP page
+
+### Code Quality Checks
+
+```bash
+# Backend checks
+cd python/
+uv run ruff check          # Linting
+uv run ruff format         # Formatting
+uv run mypy src/           # Type checking
+uv run pytest             # Testing
+
+# Frontend checks
+cd archon-ui-main/
+npm run lint               # ESLint
+npm run test               # Vitest tests
+npm run test:coverage      # Coverage report
+```
+
+## Common Patterns and Best Practices
+
+### Database Operations
+
+- Always use async/await for database operations
+- Use proper transaction handling with rollback on errors
+- Implement pagination for large datasets
+- Use typed models with Pydantic for validation
+
+### API Design
+
+- Follow RESTful conventions
+- Use proper HTTP status codes
+- Include detailed error messages
+- Implement rate limiting for public endpoints
+- Use dependency injection for database sessions
+
+### Real-time Features
+
+- Use Socket.IO for real-time updates
+- Emit progress events for long-running operations
+- Handle connection failures gracefully
+- Implement room-based messaging for user isolation
+
+### Security Considerations
+
+- Validate all input data
+- Use parameterized queries to prevent SQL injection
+- Implement proper authentication for sensitive operations
+- Log security-related events
+
+### Performance Optimization
+
+- Use connection pooling for database access
+- Implement caching for frequently accessed data
+- Use lazy loading for large datasets
+- Optimize embeddings and vector searches
+- Monitor performance with detailed logging
+
+Remember: This is alpha software focused on rapid iteration and user experience. Prioritize functionality and clear error messages over production-ready patterns.

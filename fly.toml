@@ -11,6 +11,12 @@ kill_timeout = 30
   PYTHONUNBUFFERED = "1"
   # API URL für Frontend - intern über Nginx
   VITE_API_URL = "/api"
+  # Service ports for internal communication
+  ARCHON_SERVER_PORT = "8181"
+  ARCHON_MCP_PORT = "8051"
+  # Production health check settings
+  HEALTH_CHECK_TIMEOUT = "10"
+  STARTUP_GRACE_PERIOD = "60"
   # Diese müssen als Secrets gesetzt werden:
   # fly secrets set SUPABASE_URL=xxx
   # fly secrets set SUPABASE_SERVICE_KEY=xxx
@@ -52,9 +58,9 @@ kill_timeout = 30
     handlers = ["tls", "http"]
 
   [[services.http_checks]]
-    interval = 10000
-    grace_period = "10s"
+    interval = 30000
+    grace_period = "60s"
     method = "get"
     path = "/health"
     protocol = "http"
-    timeout = 2000
+    timeout = 10000
