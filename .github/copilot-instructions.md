@@ -55,8 +55,8 @@ uv run mypy src/              # Takes ~88 seconds, shows 519 type errors (known)
 # WARNING: Docker builds can fail due to SSL certificate issues in some environments
 # If build fails with SSL errors, this is a KNOWN LIMITATION - document it
 
-# NEVER CANCEL: Docker builds take 30-60+ minutes. Set timeout to 90+ minutes.
-docker compose build --no-cache    # Full build: 45-60 minutes typical
+# NEVER CANCEL: Docker builds typically take 45-60 minutes, but can take up to 90+ minutes in some environments. Set timeout to 90+ minutes to avoid premature cancellation.
+docker compose build --no-cache    # Full build: 45-60 minutes typical, up to 90+ minutes in some environments
 docker compose up -d               # Start all services: ~2 minutes
 ```
 
